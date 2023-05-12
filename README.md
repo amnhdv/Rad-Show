@@ -7,7 +7,8 @@ This is a Python script that can be used to change the DNS servers used by the m
 The script requires Python 3 and the `argparse` module. To use it, open a terminal and navigate to the directory containing the script. Then, run the script with the following command:
 
 ```shell
-python3 rad-show.py [PROVIDER]```
+python3 rad-show.py [PROVIDER]
+```
 
 Replace `[PROVIDER]` with the name of the DNS provider you want to use (you only need to type the first character). The following DNS providers are supported:
 
@@ -24,14 +25,16 @@ Replace `[PROVIDER]` with the name of the DNS provider you want to use (you only
 To set the DNS servers to the default value, use the following command:
 
 ```shell
-python3 mac_dns_setter.py D```
+python3 mac_dns_setter.py D
+```
 
 ## Example
 
 To set the DNS servers to Shecan, use the following command:
 
 ```shell
-python3 mac_dns_setter.py s```
+python3 mac_dns_setter.py s
+```
 
 ## License
 
