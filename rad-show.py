@@ -2,6 +2,7 @@
 
 import argparse
 import subprocess
+import requests
 
 # A dictionary of DNS providers and their corresponding IP addresses
 DNS_PROVIDERS = {
@@ -38,12 +39,29 @@ def set_dns(provider):
         subprocess.call(dns_command, shell=True)
         print(f"DNS set to {provider}: {', '.join(dns_addresses)}")
 
+def check_availability(url):
+    try:
+        r = requests.head(url)
+        print(f"{url} is available.")
+    except requests.ConnectionError:
+        print(f"{url} is unavailable. Please check address/your connection or change the DNS provider.")
+    except requests.exceptions.MissingSchema:
+        try:
+            r = requests.head("http://" + url)
+            print(f"{url} is available.")
+        except requests.ConnectionError:
+            print(f"{url} is unavailable. Please check address/your connection or change the DNS provider.")
+
 if __name__ == '__main__':
     # Create a list of available provider choices for the command line argument
     provider_choices = [name for name in DNS_PROVIDERS.keys()] + [name[0].lower() for name in DNS_PROVIDERS.keys()] + ["default", "d"]
     # Set up the command line argument parser
     parser = argparse.ArgumentParser(description='Set macOS system DNS')
-    parser.add_argument('provider', choices=provider_choices, help=f'DNS provider to use:\n S: Shecan, B: Begzar, 4: 403, R: Radar, E: Electro\nD: default: the system default')
+    parser.add_argument('provider', nargs="?", choices=provider_choices, help=f'DNS provider to use:\n S: Shecan, B: Begzar, 4: 403, R: Radar, E: Electro\nD: default: the system default')
+    parser.add_argument('-s', nargs="?", const="https://www.google.com", help='Website to check status')
     args = parser.parse_args()
     # Call the set_dns function with the chosen provider
-    set_dns(args.provider[0].upper())
+    if args.s:
+        check_availability(args.s)
+    else:
+        set_dns(args.provider[0].upper())
