@@ -1,4 +1,4 @@
-# Rad-Sho: macOS System DNS Setter
+# Rad-Show: macOS System DNS Setter
 
 This is a Python script that can be used to change the DNS servers used by the macOS system. It supports a number of popular DNS providers, including Google, OpenDNS, and Cloudflare. It also enables Iranian users to choose DNS providers that circumvent bans on Iranian IP addresses.
 
@@ -25,7 +25,17 @@ Replace `[PROVIDER]` with the name of the DNS provider you want to use (you only
 To set the DNS servers to the default value, use the following command:
 
 ```shell
-python3 mac_dns_setter.py D
+python3 rad_show.py D
+```
+
+You can also use the -s option and then enter a URL, and the script will check if that website is working with the current network settings.
+
+```shell
+python3 rad_show.py chat.openai.com/chat
+```
+
+```shell
+chat.openai.com/chat is available.
 ```
 
 ## Example
@@ -33,7 +43,7 @@ python3 mac_dns_setter.py D
 To set the DNS servers to Shecan, use the following command:
 
 ```shell
-python3 mac_dns_setter.py s
+python3 rad_show.py s
 ```
 
 ## License
