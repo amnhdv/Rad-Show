@@ -52,6 +52,10 @@ def check_availability(url):
         except requests.ConnectionError:
             print(f"{url} is unavailable. Please check address/your connection or change the DNS provider.")
 
+def flush_dns_cache():
+    subprocess.run(["dscacheutil", "-flushcache"])
+    print("DNS cache flushed.")
+
 if __name__ == '__main__':
     # Create a list of available provider choices for the command line argument
     provider_choices = [name for name in DNS_PROVIDERS.keys()] + [name[0].lower() for name in DNS_PROVIDERS.keys()] + ["default", "d"]
@@ -59,9 +63,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Set macOS system DNS')
     parser.add_argument('provider', nargs="?", choices=provider_choices, help=f'DNS provider to use:\n S: Shecan, B: Begzar, 4: 403, R: Radar, E: Electro\nD: default: the system default')
     parser.add_argument('-s', nargs="?", const="https://www.google.com", help='Website to check status')
+    parser.add_argument('-f', nargs="?", help='Flush DNS cache')
     args = parser.parse_args()
     # Call the set_dns function with the chosen provider
     if args.s:
         check_availability(args.s)
+    elif args.f:
+        flush_dns_cache()
     else:
         set_dns(args.provider[0].upper())
