@@ -1,3 +1,7 @@
+
+<img width="762" height="643" alt="Interactive CLI tool" src="https://github.com/aminh02/Rad-Show/assets/90900584/df71ea1b-4727-4de8-b0c9-7a37c954effb">
+
+
 # Rad-Show: macOS System DNS Setter
 
 This is a Python script that can be used to change the DNS servers used by the macOS system. It supports a number of popular DNS providers, including Google, OpenDNS, and Cloudflare. It also enables Iranian users to choose DNS providers that circumvent bans on Iranian IP addresses.
