@@ -46,9 +46,9 @@ def check_availability(url):
     except requests.exceptions.MissingSchema:
         try:
             r = requests.head("http://" + url)
-            return f"{url} is available."
+            return f"           URL is available.         "
         except requests.ConnectionError:
-            return f"{url} is unavailable. Please check address/your connection or change the DNS provider."
+            return f"          URL is unavailable.        "
 
 def flush_dns_cache():
     subprocess.run(["dscacheutil", "-flushcache"])
