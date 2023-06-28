@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# @TODO get and display initial DNS settings
 import argparse
 import subprocess
 import requests
@@ -21,7 +22,7 @@ def set_dns(provider):
     # If the provider is "default", unset the DNS
     if provider == 'D':
         subprocess.run(["networksetup", "-setdnsservers", "Wi-Fi", "empty"])
-        return f"          \033[1;32m<DNS set to default.>\033[0m        "
+        return f"        \033[1;32m<DNS set to default.>\033[0m        "
     # Otherwise, set the DNS to the chosen provider's IP addresses
     provider_options = [name for name in DNS_PROVIDERS.keys() if name.lower().startswith(provider.lower())]
     if len(provider_options) == 0:
@@ -42,7 +43,7 @@ def check_availability(url):
         r = requests.head(url)
         return f"{url} is available."
     except requests.ConnectionError:
-        return f"{url} is unavailable. Please check address/your connection or change the DNS provider."
+        return f"site is unavailable. Please check address/connection or change the DNS provider."
     except requests.exceptions.MissingSchema:
         try:
             r = requests.head("http://" + url)
@@ -97,7 +98,6 @@ def generate_prompt(user_choice, output):
 #                \033[1;34mCommand: \033[1;34m{str(user_choice)[0]}\033[0m               #
 #                                         #
 #  {output_text}  #
-#                                         #
 ###########################################
 """
     return prompt
@@ -115,6 +115,7 @@ while True:
     if user_choice == "":
         exit()
     elif user_choice.lower().startswith('x'):
+        subprocess.call("clear", shell=True)
         break
     elif user_choice.lower().startswith('p'):
         output = check_availability(user_choice.split(" ")[1])
