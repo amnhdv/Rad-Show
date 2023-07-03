@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
-import argparse
+import os
 import subprocess
-import requests
+import curses
+import curses.textpad
 
-# A dictionary of DNS providers and their corresponding IP addresses
 DNS_PROVIDERS = {
     'Google': ['8.8.8.8', '8.8.4.4'],
     'OpenDNS': ['208.67.222.222', '208.67.220.220'],
@@ -17,58 +15,290 @@ DNS_PROVIDERS = {
     'Electro': ['78.157.42.100', '78.157.42.101']
 }
 
-def set_dns(provider):
-    # If the provider is "default", unset the DNS
-    if provider == 'D':
-        subprocess.run(["networksetup", "-setdnsservers", "Wi-Fi", "empty"])
-        print(f"DNS set to default.")
-        return
-    # Otherwise, set the DNS to the chosen provider's IP addresses
-    provider_options = [name for name in DNS_PROVIDERS.keys() if name.lower().startswith(provider.lower())]
-    if len(provider_options) == 0:
-        print(f"No provider starting with '{provider}' found.")
-        return
-    elif len(provider_options) > 1:
-        print(f"Multiple provider options: {provider_options}. Please specify a more specific provider name.")
-        return
-    else:
-        provider = provider_options[0]
-        dns_addresses = DNS_PROVIDERS[provider]
-        # Construct and execute the command to set the DNS
-        dns_command = f"networksetup -setdnsservers Wi-Fi {' '.join(dns_addresses)}"
-        subprocess.call(dns_command, shell=True)
-        print(f"DNS set to {provider}: {', '.join(dns_addresses)}")
+APP_NAME_ASCII = """
+ ___  __  __     __ _  _  __  _   _  
+| _ \/  \| _\  /' _| || |/__\| | | | 
+| v | /\ | v | `._\| >< | \/ | 'V' | 
+|_|_|_||_|__/  |___|_||_|\__/!_/ \_! 
+"""
 
-def check_availability(url):
-    try:
-        r = requests.head(url)
-        print(f"{url} is available.")
-    except requests.ConnectionError:
-        print(f"{url} is unavailable. Please check address/your connection or change the DNS provider.")
-    except requests.exceptions.MissingSchema:
-        try:
-            r = requests.head("http://" + url)
-            print(f"{url} is available.")
-        except requests.ConnectionError:
-            print(f"{url} is unavailable. Please check address/your connection or change the DNS provider.")
+class RadShowApp:
+    def __init__(self, screen):
+        self.screen = screen
+        self.selected_option = 0
+        self.options = list(DNS_PROVIDERS.keys())
+        self.options.extend(['Network Default', 'Flush DNS Cache', 'Quit'])
+        self.rows = len(self.options) // 3 + (1 if len(self.options) % 3 else 0)
+        self.cols = min(3, len(self.options))
 
-def flush_dns_cache():
-    subprocess.run(["dscacheutil", "-flushcache"])
-    print("DNS cache flushed.")
+    def run(self):
+        """
+        Run the program indefinitely.
 
-if __name__ == '__main__':
-    # Create a list of available provider choices for the command line argument
-    provider_choices = [name for name in DNS_PROVIDERS.keys()] + [name[0].lower() for name in DNS_PROVIDERS.keys()] + ["default", "d"]
-    # Set up the command line argument parser
-    parser = argparse.ArgumentParser(description='Set macOS system DNS')
-    parser.add_argument('provider', nargs="?", choices=provider_choices, help=f'DNS provider to use:\n S: Shecan, B: Begzar, 4: 403, R: Radar, E: Electro\nD: default: the system default')
-    parser.add_argument('-s', nargs="?", const="https://www.google.com", help='Website to check status')
-    parser.add_argument('-f', nargs="?", help='Flush DNS cache')
-    args = parser.parse_args()
-    # Call the set_dns function with the chosen provider
-    if args.s:
-        check_availability(args.s)
-    elif args.f:
-        flush_dns_cache()
-    else:
-        set_dns(args.provider[0].upper())
+        This function displays the menu and processes user input
+        in a loop until the program is terminated.
+        """
+        while True:
+            self.display_menu()
+            self.process_input()
+
+    def display_menu(self):
+        self.screen.clear()
+        self.screen.box()
+        # Print the logo with a rainbow effect
+        ascii_lines = APP_NAME_ASCII.split('\n')
+        for i, line in enumerate(ascii_lines):
+            # Use a different color pair for each line of the logo
+            color_pair = curses.color_pair(i + 2)
+            self.screen.attron(color_pair)
+            self.screen.addstr(i + 1, (curses.COLS - len(line)) // 2, line)
+            self.screen.attroff(color_pair)
+
+
+        start_y = len(ascii_lines) + 2
+        box_width = max(len(option) for option in self.options) + 4
+        box_height = 3
+        # Adjust the margins to center the menu options
+        margin_x = (curses.COLS - box_width * self.cols - 2) // (self.cols + 1)
+        margin_y = (curses.LINES - start_y - box_height * self.rows - 2) // (self.rows + 1)
+
+        for i, option in enumerate(self.options):
+            row = i // self.cols
+            col = i % self.cols
+            y = start_y + margin_y * row + box_height * row
+            x = margin_x * (col + 1) + box_width * col + 1
+            attr = self.get_option_attr(i)
+            self.print_option(option, y, x, attr, box_width, box_height)
+
+        self.screen.refresh()
+
+
+    def get_option_attr(self, index):
+        """
+        Returns the color attribute for the given option index.
+
+        Args:
+            index (int): The index of the option.
+
+        Returns:
+            int: The color attribute for the option.
+        """
+        if index == self.selected_option:
+            return curses.color_pair(1)
+        return curses.color_pair(0)
+
+    def print_option(self, option, y, x, attr, box_width, box_height):
+        """
+        Print an option within a box on the screen.
+        Args:
+            option (str): The text of the option.
+            y (int): The y-coordinate of the top-left corner of the box.
+            x (int): The x-coordinate of the top-left corner of the box.
+            attr (int): The attribute for the text formatting.
+            box_width (int): The width of the box.
+            box_height (int): The height of the box.
+        """
+        # Enable text formatting with attr
+        self.screen.attron(attr)
+        # Use the same box_width and box_height as in draw_box method
+        self.screen.addstr(y - 1, x, '+' + '-' * (box_width - 2) + '+')
+        self.screen.addstr(y, x, '| ' + option.center(box_width - 4) + ' |')
+        self.screen.addstr(y + 1, x, '+' + '-' * (box_width - 2) + '+')
+        self.screen.attroff(attr)
+
+    def process_input(self):
+        """
+        Process user input and perform corresponding actions.
+        """
+        key = self.screen.getch()
+
+        # Move up if possible
+        if key == curses.KEY_UP and self.selected_option >= self.cols:
+            self.selected_option -= self.cols
+
+        # Move down if possible
+        elif key == curses.KEY_DOWN and self.selected_option < len(self.options) - self.cols:
+            self.selected_option += self.cols
+
+        # Move left if possible
+        elif key == curses.KEY_LEFT and self.selected_option % self.cols > 0:
+            self.selected_option -= 1
+
+        # Move right if possible
+        elif key == curses.KEY_RIGHT and self.selected_option % self.cols < self.cols - 1 and self.selected_option < len(self.options) - 1:
+            self.selected_option += 1
+
+        # Perform action based on selected option
+        elif key in [curses.KEY_ENTER, 13, 10]:
+            action = self.options[self.selected_option]
+
+            if action == 'Network Default':
+                self.confirm_action('reset to network default', self.reset_dns)
+
+            elif action == 'Flush DNS Cache':
+                self.confirm_action('flush DNS cache', self.flush_cache)
+
+            elif action == 'Quit':
+                self.confirm_action('quit', self.quit_app)
+
+            elif action in DNS_PROVIDERS.keys():
+                self.confirm_action(f"use {action}", self.set_dns)
+        
+        # Cycle between Quad9 and Quit by typing 'q'
+        elif key in [ord('q'), ord('Q')]:
+            current_option = self.options[self.selected_option]
+            if current_option == 'Quad9':
+                self.selected_option = self.options.index('Quit')
+            else:
+                self.selected_option = self.options.index('Quad9')
+        
+        # Select option by typing the first letter
+        elif key >= ord('A') and key <= ord('z'):
+            typed_letter = chr(key).upper()
+            matching_options = [index for index, option in enumerate(self.options) if option.startswith(typed_letter)]
+            if matching_options:
+                self.selected_option = matching_options[0]
+        
+            # Select option "403" by typing '4'
+        elif key == ord('4'):
+            matching_options = [index for index, option in enumerate(self.options) if option == '403']
+            if matching_options:
+                self.selected_option = matching_options[0]
+                
+        self.display_menu()
+
+
+    def confirm_action(self, action_name, action_function):
+        # Get the screen size
+        height, width = self.screen.getmaxyx()
+
+        # Create a new window for the confirmation box
+        win = curses.newwin(5, 40, height // 2 - 3, width // 2 - 20)
+
+        # Draw a border around the window
+        win.border()
+
+        # Write the title and the text
+        win.addstr(0, 2, "Confirm Action", curses.A_BOLD)
+        win.addstr(2, 2, f"Do you want to {action_name}? (y/n)")
+
+        # Refresh the window
+        win.refresh()
+
+        # Set the window to accept keypad input
+        win.keypad(True)
+
+        # Loop until a valid input is received
+        while True:
+            # Get the user input
+            key = win.getch()
+
+            # Perform the action if the answer is yes
+            if key in [ord('y'), ord('Y')]:
+                action_function()
+                break
+
+            # Exit the loop if the answer is no
+            elif key in [ord('n'), ord('N')]:
+                break
+
+        # Clear the window
+        win.clear()
+        win.refresh()
+        
+
+    def set_dns(self):
+        provider = self.options[self.selected_option]
+        dns_ips = DNS_PROVIDERS[provider]
+        command = f"networksetup -setdnsservers Wi-Fi {dns_ips[0]} {dns_ips[1]}"
+        subprocess.call(command, shell=True)
+        self.display_menu()
+        self.display_confirmation(f"DNS set to {provider}\n({dns_ips[0]}, {dns_ips[1]})")
+
+    def reset_dns(self):
+        command = "networksetup -setdnsservers Wi-Fi Empty"
+        subprocess.call(command, shell=True)
+        self.display_menu()
+        self.display_confirmation("DNS reset to network default")
+
+    def flush_cache(self):
+        command = "dscacheutil -flushcache"
+        subprocess.call(command, shell=True)
+        self.display_menu()
+        self.display_confirmation("DNS cache flushed")
+
+    def quit_app(self):
+        self.display_menu()
+        self.display_confirmation("Quitting App")
+        curses.endwin()
+        exit()
+
+    def draw_box(self, message):
+        lines = message.split('\n')
+        max_width = max(len(line) for line in lines)
+
+        box_width = max_width + 4
+        box_height = len(lines) + 4
+        box_y = (curses.LINES - box_height) // 2
+        box_x = (curses.COLS - box_width) // 2
+
+        # Use the same box_width and box_height as in print_option method
+        # Add some padding to the message lines
+        for i in range(box_height):
+            if i == 0 or i == box_height - 1:
+                line = '+' + '-' * (box_width - 2) + '+'
+            elif i == 1 or i == box_height - 2:
+                line = '| ' + ' ' * (box_width - 4) + ' |'
+            else:
+                line = '| ' + lines[i - 2].center(max_width) + ' |'
+            # Center the line horizontally and vertically
+            y = box_y + i
+            x = (curses.COLS - len(line)) // 2
+            # Use the default color pair for the box
+            attr = curses.color_pair(1)
+            # Print the line with the attribute
+            self.screen.attron(attr)
+            self.screen.addstr(y, x, line)
+            self.screen.attroff(attr)
+
+    def display_confirmation(self, message):
+        # Clear the screen before displaying the confirmation
+        # Use the default color pair for the screen border
+        attr = curses.color_pair(0)
+        # Draw a border around the screen with the attribute
+        self.screen.attron(attr)
+        self.screen.border()
+        # Turn off the attribute
+        self.screen.attroff(attr)
+
+        # Draw a box with the message inside it
+        self.draw_box(message)
+
+        # Refresh the screen to show the changes
+        self.screen.refresh()
+        
+         # Display confirmation for 1.5 second
+        curses.napms(1500)
+
+         # Clear the screen after displaying the confirmation
+         # Refresh the screen again to show the changes
+        self.screen.clear()
+        self.screen.refresh()
+
+def main(stdscr):
+    curses.curs_set(0)
+    curses.use_default_colors()
+    curses.init_pair(0, -1, -1)  # Default color
+    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_YELLOW)  # Selected menu option color
+    curses.init_pair(2, curses.COLOR_RED, -1)  # Red on default
+    curses.init_pair(3, curses.COLOR_GREEN, -1)  # Green on default
+    curses.init_pair(4, curses.COLOR_YELLOW, -1)  # Yellow on default
+    curses.init_pair(5, curses.COLOR_BLUE, -1)  # Blue on default
+    curses.init_pair(6, curses.COLOR_MAGENTA, -1)  # Magenta on default
+    curses.init_pair(7, curses.COLOR_CYAN, -1)  # Cyan on default
+    stdscr.keypad(True)  # Enable function key support (like Arrow keys)
+
+    app = RadShowApp(stdscr)
+    app.run()
+
+curses.wrapper(main)
