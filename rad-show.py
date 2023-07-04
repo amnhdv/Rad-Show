@@ -2,6 +2,7 @@ import os
 import subprocess
 import curses
 import curses.textpad
+import platform
 
 DNS_PROVIDERS = {
     'Google': ['8.8.8.8', '8.8.4.4'],
@@ -210,19 +211,42 @@ class RadShowApp:
     def set_dns(self):
         provider = self.options[self.selected_option]
         dns_ips = DNS_PROVIDERS[provider]
-        command = f"networksetup -setdnsservers Wi-Fi {dns_ips[0]} {dns_ips[1]}"
+        
+        if platform.system() == "Darwin":
+            command = f"networksetup -setdnsservers Wi-Fi {dns_ips[0]} {dns_ips[1]}"
+        elif platform.system() == "Linux":
+            command = f"nmcli device modify <device_name> ipv4.dns '{dns_ips[0]} {dns_ips[1]}'"
+        else:
+            # Handle unsupported platforms or fallback to a default behavior
+            self.display_warning("Unsupported operating system")
+            return
+        
         subprocess.call(command, shell=True)
         self.display_menu()
         self.display_confirmation(f"DNS set to {provider}\n({dns_ips[0]}, {dns_ips[1]})")
 
     def reset_dns(self):
-        command = "networksetup -setdnsservers Wi-Fi Empty"
+        if platform.system() == "Darwin":
+            command = "networksetup -setdnsservers Wi-Fi Empty"
+        elif platform.system() == "Linux":
+            command = "nmcli device modify <device_name> ipv4.ignore-auto-dns yes"
+        else:
+            self.display_warning("Unsupported operating system")
+            return
+        
         subprocess.call(command, shell=True)
         self.display_menu()
         self.display_confirmation("DNS reset to network default")
 
     def flush_cache(self):
-        command = "dscacheutil -flushcache"
+        if platform.system() == "Darwin":
+            command = "dscacheutil -flushcache"
+        elif platform.system() == "Linux":
+            command = "/etc/init.d/nscd restart"
+        else:
+            self.display_warning("Unsupported operating system")
+            return
+        
         subprocess.call(command, shell=True)
         self.display_menu()
         self.display_confirmation("DNS cache flushed")
