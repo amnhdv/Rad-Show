@@ -215,8 +215,8 @@ class RadShowApp:
         if platform.system() == "Darwin":
             command = f"networksetup -setdnsservers Wi-Fi {dns_ips[0]} {dns_ips[1]}"
         elif platform.system() == "Linux":
-            device_name = subprocess.check_output(["nmcli", "device", "show"]).decode().split()[0]
-            command = f"nmcli device modify {device_name} ipv4.dns '{dns_ips[0]} {dns_ips[1]}'"
+            connection_name = subprocess.check_output(["nmcli", "connection", "show"]).decode().split()[0]
+            command = f"nmcli connection modify {connection_name} ipv4.dns '{dns_ips[0]} {dns_ips[1]}'"
         else:
             # Handle unsupported platforms or fallback to a default behavior
             self.display_warning("Unsupported operating system")
