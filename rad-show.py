@@ -213,7 +213,10 @@ class RadShowApp:
         dns_ips = DNS_PROVIDERS[provider]
         
         if platform.system() == "Darwin":
-            command = f"networksetup -setdnsservers Wi-Fi {dns_ips[0]} {dns_ips[1]}"
+            # Choose the first network
+            connection_name = subprocess.check_output(["networksetup", "-listallnetworkservices"]).decode().split()[10]
+            # Set the DNS servers for the first network
+            command = f"networksetup -setdnsservers {connection_name} {dns_ips[0]} {dns_ips[1]}"
         elif platform.system() == "Linux":
             connection_name = subprocess.check_output(["nmcli", "connection", "show"]).decode().split()[4]
             command = f"nmcli connection modify {connection_name} ipv4.dns '{dns_ips[0]} {dns_ips[1]}'"
@@ -228,9 +231,11 @@ class RadShowApp:
 
     def reset_dns(self):
         if platform.system() == "Darwin":
-            command = "networksetup -setdnsservers Wi-Fi Empty"
+            connection_name = subprocess.check_output(["networksetup", "-listallnetworkservices"]).decode().split()[10]
+            command = f"networksetup -setdnsservers {connection_name} Empty"
         elif platform.system() == "Linux":
-            command = "nmcli device modify <device_name> ipv4.ignore-auto-dns yes"
+            connection_name = subprocess.check_output(["nmcli", "connection", "show"]).decode().split()[4]
+            command = f"nmcli device modify {connection_name} ipv4.ignore-auto-dns yes"
         else:
             self.display_warning("Unsupported operating system")
             return
